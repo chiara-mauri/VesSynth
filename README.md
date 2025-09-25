@@ -1,1 +1,3 @@
 # Vessynth
+
+Vessel segmentation method
