@@ -329,6 +329,7 @@ class predictSingleImage(RealVolume,Dataset):
         print(f"\n\n{redundancy}x Averaging...")
         self.prediction /= redundancy
         self.prediction = self.prediction.cpu().numpy()
+        del self.tensor #free memory
         return self.prediction, self.affine #return the prediction and the affine matrix of the input image
     
 

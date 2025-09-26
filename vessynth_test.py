@@ -83,7 +83,8 @@ if __name__ == "__main__":
     if modality == 'OCT':
         model_to_load = glob.glob('./models/OCT_model*')[0]
     elif modality == 'T2star':
-        model_to_load = glob.glob('./models/T2star_model*')[0]
+        #model_to_load = glob.glob('./models/T2star_model*')[0]
+        model_to_load = glob.glob('./models/T2star_model4*')[0]
     elif modality == 'TOF':
         model_to_load = glob.glob('./models/TOF_model*')[0]
     else:
@@ -142,7 +143,7 @@ if __name__ == "__main__":
 
 
             print(f"Prediction shape: {prediction.shape}")
-
+            
 
             # Save the predictions
         
@@ -178,9 +179,11 @@ if __name__ == "__main__":
                     prediction_binary = (prediction > th).astype(np.float32)
                     save_img = nib.Nifti1Image(np.squeeze(prediction_binary), affine=affine_save)
                     nib.save(save_img,f"{outputdir}/{save_name}_vessels_binary_th_{th}.mgz")
+                    del prediction_binary
+
             else:
                 print("No threshold applied, saving only raw prediction")
             
-        
+            del prediction
         t2 = time.time()
         print(f"Process took {round((t2-t1)/60, 2)} min")
