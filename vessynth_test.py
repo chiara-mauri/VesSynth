@@ -26,11 +26,11 @@ if __name__ == "__main__":
                         help='path to volumes you want to predict on. It can be a list of volumes.') 
     parser.add_argument('-o', '--outdir', type=str, required=True,
                         help='output directory to save predictions.')
-    parser.add_argument('-m', '--modality', type=str, required=True,
+    parser.add_argument('-mod', '--modality', type=str, required=True,
                         help='Type of modality. Allowed: OCT, T2star, TOF.')
     parser.add_argument('-t', '--threshold', type=float, nargs='+', default=[0.3],
                         help='Threshold to apply to the predictions. Default is 0.3. It can be a list of thresholds.')
-    parser.add_argument('--masks', type=str, nargs='+', default=None,
+    parser.add_argument('-m', '--masks', type=str, nargs='+', default=None,
                         help='List of masks to apply to the predictions. If None, no mask is applied. \
                             Masks should be in the same order as the volumes. Default is None.')
 

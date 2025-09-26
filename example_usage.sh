@@ -34,7 +34,7 @@ subjects=(
 
 #predict on all patches
 
-python vessynth_test.py -i "${dataPath}${subjects[0]}" "${dataPath}${subjects[1]}" -o $outputDir -m T2star 
+python vessynth_test.py -i "${dataPath}${subjects[0]}" "${dataPath}${subjects[1]}" -o $outputDir -mod T2star 
 
 
 
