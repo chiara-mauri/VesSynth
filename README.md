@@ -11,7 +11,7 @@ python vessynth_test.py -i <vol> -o <outputDir> -mod <modality> [-th <threshold>
 ```
 
 where the required arguments are:
-- ```<vol>``` is input nifti volume to segment. You can also provide more than one volume, e.g. ```-i vol1 vol2 vol3```
+- ```<vol>``` is input nifti volume to segment. 
 - ```<outputDir>``` is output directory where segmentations are saved
 - ```<modality>``` indicates the modality/contrast of the input volume. Accepted values are 'T2star' (for exvivo MRI for instance), 'OCT' (for Optical Coherence Tomography) and 'TOF' (for in vivo Time-Of-Flight MRA)
 
