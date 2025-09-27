@@ -81,12 +81,12 @@ if __name__ == "__main__":
     model_path = './models/'
     
     if modality == 'OCT':
-        model_to_load = glob.glob('./models/OCT_model*')[0]
+        model_to_load = glob.glob(model_path + 'weights/OCT_model*')[0]
     elif modality == 'T2star':
-        #model_to_load = glob.glob('./models/T2star_model*')[0]
-        model_to_load = glob.glob('./models/T2star_model4*')[0]
+        #model_to_load = glob.glob('./models/weights/T2star_model*')[0]
+        model_to_load = glob.glob(model_path + 'weights/T2star_model4*')[0]
     elif modality == 'TOF':
-        model_to_load = glob.glob('./models/TOF_model*')[0]
+        model_to_load = glob.glob(model_path + 'weights/TOF_model*')[0]
     else:
         raise ValueError('Modality not recognized. Allowed: OCT, T2star, TOF.')
     
