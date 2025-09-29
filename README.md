@@ -41,7 +41,11 @@ python path/to/repo/vessynth_test.py -i <vol> -o <outputDir> -mod <modality> [-t
 where the required arguments are:
 - ```<vol>``` is input nifti volume to segment. 
 - ```<outputDir>``` is output directory where segmentations are saved
-- ```<modality>``` indicates the modality/contrast of the input volume. Accepted values are 'T2star' (for exvivo MRI - bright and dark vessels), 'HipCT' (for Hierarchical Phase-Contrast Tomography - dark vessels) and 'TOF' (for in vivo Time-Of-Flight MRA - bright vessels)
+- ```<modality>``` indicates the modality/contrast of the input volume. Accepted values are
+   - 'T2star': for exvivo MRI and all T2star-based contrasts. Vessels are both bright and dark. Mesoscopic resolution (100-200um)
+   - 'HipCT': for Hierarchical Phase-Contrast Tomography. Dark vessels. Resolution ~ 30um
+   -  'OCT': for Optical Coherence Tomography. Dark vessels. Resolution ~ 20um
+   -  'TOF': for in vivo Time-Of-Flight Magnetic Resonance angiography. Bright vessels. Resolution ~ tentatively from 160um iso to 500um x 500um x 800um
 
 optional arguments are:
 - ```<threshold>``` value used to threshold the 'vessel probablity' to obtain a hard segmentation. default is 0.3
