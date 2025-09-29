@@ -4,27 +4,30 @@
 
 First create a conda environment:
 
-- Option 1: Use the provided yaml file vessels-env-test.yml:
-```conda env create -f vessels-env-test.yml
+- Option 1: Use the provided yaml file:
+
+```
+   conda env create -f vessels-env-test.yml
    conda activate vessels-env-test.yml
 ```
 
-- Option 2: Create environment and install dependencies:
-```conda create -n vessels-env-test python=3.10
+- Option 2: Create the environment and install the dependencies:
+```
+   conda create -n vessels-env-test python=3.10
    conda activate vessels-env-test
    conda install pytorch=1.13
    pip install cornucopia
 ```
 
 Then clone this repo
-```git clone https://github.com/chiara-mauri/Vessynth.git```
+``` 
+git clone https://github.com/chiara-mauri/Vessynth.git
+```
 
 ## Download the models 
 
-Download the folder 'weights' from 
-https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&page=1
-
-and copy it into the 'models' folder of this repo
+Download the folder 'weights' from the Dandiset 1062
+https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&page=1 and copy it into the 'models' folder of this repo
 
 
 ## Usage
