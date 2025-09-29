@@ -1,9 +1,9 @@
 basePath=/autofs/space/mulan_002/users/chiara/vessels/
-dataPath=$basePath'all_patches_for_paper/exvivoMRI/original/cortex-subcort/' 
-outputDir=$basePath/tests_code/
+dataPath=$basePath'all_patches_for_paper/Hip-CT/original/' 
+outputDir=$basePath'HipCT/output_diceloss_mytrain/predictions_chuncks/model1/'
 subjects=(
-    I53_bias_corrected.mgz
-    I61_flash20_RAS.mgz
+    LADAF-2021-17-chunk1_smaller.mgz
+    LADAF-2021-17-chunk2_smaller.mgz
 )
 
 # mask='given'   #'given','compute' or 'none' (default: 'given') ####
@@ -34,7 +34,8 @@ subjects=(
 
 #predict on all patches
 
-python vessynth_test.py -i "${dataPath}${subjects[0]}" "${dataPath}${subjects[1]}" -o $outputDir -mod T2star 
+python vessynth_test.py -i "${dataPath}${subjects[0]}" -o $outputDir -mod HipCT 
+python vessynth_test.py -i "${dataPath}${subjects[1]}" -o $outputDir -mod HipCT
 
 
 

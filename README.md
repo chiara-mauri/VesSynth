@@ -35,7 +35,7 @@ https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&
 Now you can use the method with:
 
 ```
-python vessynth_test.py -i <vol> -o <outputDir> -mod <modality> [-th <threshold> -m <mask_vol>]
+python path/to/repo/vessynth_test.py -i <vol> -o <outputDir> -mod <modality> [-th <threshold> -m <mask_vol>]
 ```
 
 where the required arguments are:
