@@ -88,7 +88,7 @@ if __name__ == "__main__":
     elif modality == 'TOF':
         model_to_load = glob.glob(model_path + 'weights/TOF_model*')[0]
     elif modality == 'HipCT':
-        model_to_load = glob.glob(model_path + 'weights/HipCT_modelbase*')[0]
+        model_to_load = glob.glob(model_path + 'weights/HipCT_model1*')[0]
     else:
         raise ValueError('Modality not recognized. Allowed: OCT, T2star, HipCT, TOF.')
     
