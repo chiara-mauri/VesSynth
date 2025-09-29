@@ -1,6 +1,6 @@
 basePath=/autofs/space/mulan_002/users/chiara/vessels/
 dataPath=$basePath'all_patches_for_paper/Hip-CT/original/' 
-outputDir=$basePath'HipCT/output_diceloss_mytrain/predictions_chuncks/model1/'
+outputDir=$basePath'HipCT/output_diceloss_mytrain/predictions_chuncks/model1_epoch68/'
 subjects=(
     LADAF-2021-17-chunk1_smaller.mgz
     LADAF-2021-17-chunk2_smaller.mgz
