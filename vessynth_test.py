@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--outdir', type=str, required=True,
                         help='output directory to save predictions.')
     parser.add_argument('-mod', '--modality', type=str, required=True,
-                        help='Type of modality. Allowed: OCT, T2star, TOF.')
+                        help='Type of modality. Allowed: T2star, HipCT, TOF.')
     parser.add_argument('-t', '--threshold', type=float, nargs='+', default=[0.3],
                         help='Threshold to apply to the predictions. Default is 0.3. It can be a list of thresholds.')
     parser.add_argument('-m', '--masks', type=str, nargs='+', default=None,
@@ -87,8 +87,10 @@ if __name__ == "__main__":
         model_to_load = glob.glob(model_path + 'weights/T2star_model4*')[0]
     elif modality == 'TOF':
         model_to_load = glob.glob(model_path + 'weights/TOF_model*')[0]
+    elif modality == 'HipCT':
+        model_to_load = glob.glob(model_path + 'weights/HipCT_model*')[0]
     else:
-        raise ValueError('Modality not recognized. Allowed: OCT, T2star, TOF.')
+        raise ValueError('Modality not recognized. Allowed: OCT, T2star, HipCT, TOF.')
     
 
     if not os.path.exists(outputdir):
