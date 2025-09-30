@@ -27,12 +27,14 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--outdir', type=str, required=True,
                         help='output directory to save predictions.')
     parser.add_argument('-mod', '--modality', type=str, required=True,
-                        help='Type of modality. Allowed: T2star, HipCT, OCT, TOF.')
+                        help='Type of modality. Allowed: T2star, HipCT, TOF.')
     parser.add_argument('-t', '--threshold', type=float, nargs='+', default=[0.3],
                         help='Threshold to apply to the predictions. Default is 0.3. It can be a list of thresholds.')
     parser.add_argument('-m', '--masks', type=str, nargs='+', default=None,
                         help='List of masks to apply to the predictions. If None, no mask is applied. \
                             Masks should be in the same order as the volumes. Default is None.')
+    parser.add_argument('-c', '--cutout', type=str, nargs='+', default=None,
+                        help='A bounding box to identify ROI for the zarr input, "x1,x2,y1,y2,z1,z2" ')
 
    
     #parameters of volumes to predict on
@@ -54,6 +56,7 @@ if __name__ == "__main__":
     modality = args.modality
     threshold = args.threshold
     mask_list = args.masks
+    cutout = args.cutout
 
     #hardcoded parameters
     patch_size = 128
@@ -82,17 +85,13 @@ if __name__ == "__main__":
     
     if modality == 'OCT':
         model_to_load = glob.glob(model_path + 'weights/OCT_model*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_OCT.json') # Path to the JSON file containing the backbone dictionary
     elif modality == 'T2star':
         #model_to_load = glob.glob('./models/weights/T2star_model*')[0]
-        model_to_load = glob.glob(model_path + 'weights/T2star_model*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_T2star.json')
+        model_to_load = glob.glob(model_path + 'weights/T2star_model4*')[0]
     elif modality == 'TOF':
         model_to_load = glob.glob(model_path + 'weights/TOF_model*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_TOF.json')
     elif modality == 'HipCT':
-        model_to_load = glob.glob(model_path + 'weights/HipCT_model*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_HipCT.json')
+        model_to_load = glob.glob(model_path + 'weights/HipCT_model1*')[0]
     else:
         raise ValueError('Modality not recognized. Allowed: OCT, T2star, HipCT, TOF.')
     
@@ -105,6 +104,8 @@ if __name__ == "__main__":
     t1 = time.time()
     with torch.no_grad():
 
+        # Path to the JSON file containing the backbone dictionary
+        json_path = os.path.join(model_path, f'segnet_model.json')
         # Read backbone_dict from the JSON file
         with open(json_path, 'r') as f:
             backbone_dict = json.load(f)
@@ -131,9 +132,10 @@ if __name__ == "__main__":
         
         print(f"\nStarting predictions on {len(volumes)} volumes...")
         for vol_index, vol in enumerate(volumes):
+        
 
             print(f"Processing volume {vol_index + 1}/{len(volumes)}: {vol}")
-
+            
             prediction, affine = test_convolve(
                 vol,
                 model,
@@ -142,7 +144,8 @@ if __name__ == "__main__":
                 DEVICE='cuda' if torch.cuda.is_available() else 'cpu',
                 normalize_patches=True, 
                 normalize_image=False,
-                clip_input_patch=False
+                clip_input_patch=False,
+                cutout=cutout
                 )() 
 
 

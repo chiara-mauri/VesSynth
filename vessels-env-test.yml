@@ -40,4 +40,5 @@ dependencies:
       - packaging==25.0
       - torch-distmap==0.2.0
       - torch-interpol==0.2.6
+      - tensorstore==0.1.67
 prefix: /autofs/space/mulan_001/users/chiara/miniforge3/envs/vessels-env-test
