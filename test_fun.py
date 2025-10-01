@@ -315,14 +315,16 @@ class RealVolume(object):
             # Get directory location of volume (will also use later for saving)
             #self.volume_dir = self.input.strip('.nii').strip(self.tensor_name).strip('/')
             
+            #input is input file if nifti or it is zarr folder if zarr
             ###CONNOR_EDIT
             if 'nii' in input or 'mgz' in input or 'mgh' in input:
                 nifti = nib.load(input)
                 # Load tensor on device with dtype. Detach from graph.
                 tensor = nifti.get_fdata()
                 affine = nifti.affine
-                
-            else:
+
+            elif os.path.exists(os.path.join(input, 'zarr.json')):
+
                 if self.cutout:
                     x1,x2,y1,y2,z1,z2 = [int(x) for x in self.cutout[0].split(',')]
                     tensor = open_tensor(fpath=input)[x1:x2,y1:y2,z1:z2].read().result()
@@ -334,7 +336,8 @@ class RealVolume(object):
                 [ 0.0,  1.00,  0.0, 0.0],
                 [ 0.0,  0.0,  1.0, 0.0],
                 [ 0.0,  0.0,  0.0, 1.0]])
-                
+            else:
+                raise ValueError('Input path is not valid nifti/mgz/mgh or zarr folder!')    
                 
         elif isinstance(input, torch.Tensor):
             tensor = input.to(self.device).to(self.dtype).detach()
