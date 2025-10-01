@@ -5,6 +5,170 @@ Created on Tue Dec 10 16:56:21 2024
 
 """
 
+import configparser
+from typing import Optional
+import pandas as pd
+import numpy as np
+import tensorstore as ts
+import os
+import json
+import boto3
+from functools import lru_cache
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing_extensions import Self
+import numpy as np
+
+
+def split_s3_path(s3_path):
+    if 'https' in s3_path:
+        path_parts=s3_path.replace("https://","").split("/")
+        bucket=path_parts.pop(0).split(".s3")[0]
+        key="/".join(path_parts)
+    else:
+        path_parts=s3_path.replace("s3://","").split("/")
+        bucket=path_parts.pop(0)
+        key="/".join(path_parts)
+    return bucket, key
+
+class AWS_Parameters:
+    entries: dict[int, tuple[str, str]]
+    temp_dir: TemporaryDirectory[str]
+    credentials_file_path: Path
+    @classmethod
+    @lru_cache
+    def singleton(cls) -> "Self":
+        return cls()
+        
+    def __init__(self, profile=None, region=None, endpoint_url=None):
+        self.entries = {}
+        self.temp_dir = TemporaryDirectory()
+        self.credentials_file_path = Path(self.temp_dir.name) / "aws_credentials"
+        self.credentials_file_path.touch()
+        #create session
+        session = boto3.Session(profile_name=profile, region_name=region)
+        if endpoint_url:
+            self.endpoint_url=endpoint_url
+        self.profile=session.profile_name
+        self.region=session.region_name
+    def _dump_credentials(self) -> None:
+        self.credentials_file_path.write_text(
+            "\n".join(
+                [
+                    f"[{self.profile}]\naws_access_key_id = {access_key_id}\naws_secret_access_key = {secret_access_key}\n"
+                    for key_hash, (
+                        access_key_id,
+                        secret_access_key,
+                    ) in self.entries.items()
+                ]
+            )
+        )
+    def add_credentials(self, access_key_id: str, secret_access_key: str) -> dict[str, str]:
+        key_tuple = (access_key_id, secret_access_key)
+        key_hash = hash(key_tuple)
+        self.entries[key_hash] = key_tuple
+        self._dump_credentials()
+        self.credential_file = {
+            "profile": f"profile-{key_hash}",
+            "filename": str(self.credentials_file_path),
+            "metadata_endpoint": "",
+        }
+
+
+def create_kvstore(fpath, store, AWS_param=None):
+    """Creates the kvstore configuration based on the input parameters.
+
+    Args:
+        fpath (str): Path to the tensorstore file or S3 URL.
+        store (str): Type of store ('file' or 's3').
+        AWS_param (Optional[dict]): AWS credentials and parameters (only used for S3).
+
+    Returns:
+        dict: The kvstore configuration.
+    """
+    kvstore = {"driver": store, "path": fpath}
+    
+    if store == 's3':
+        # Parse the S3 URL into bucket and path
+        bucket, path = split_s3_path(fpath)
+        kvstore = {"driver": "s3", "bucket": bucket, "path": path}
+        
+        if AWS_param:
+            kvstore.update({"aws_region": AWS_param.region})
+            if hasattr(AWS_param, "endpoint_url"):
+                kvstore.update({"endpoint": AWS_param.endpoint_url})
+            
+            # Handle credentials
+            cred = {"aws_credentials": {"profile": AWS_param.profile}}
+            if hasattr(AWS_param, "credential_file"):
+                cred = {"aws_credentials": {
+                    "profile": AWS_param.profile,
+                    "filename": AWS_param.credential_file['filename']
+                }}
+            kvstore.update(cred)
+    
+    return kvstore
+    
+    
+def open_tensor(fpath=None, kvstore=None, driver='zarr', bytes_limit=100_000_000):
+    """Open a tensorstore object.
+
+    Args:
+        fpath (str): Path to the tensorstore file or S3 URL.
+        driver (str): Type of file (e.g., 'zarr', 'n5', 'precomputed').
+        kvstore (dict, optional): Pre-constructed kvstore configuration.
+        bytes_limit (int): Memory limit for in-memory cache in bytes (default 100MB).
+
+    Returns:
+        tensorstore.Dataset: The opened tensorstore dataset.
+    """
+    # If kvstore is not provided, create it from fpath
+    if kvstore is None:
+        kvstore = create_kvstore(fpath, store='file', AWS_param=None)
+
+    # Check if zarr v3
+    if 'zarr' in driver:
+        # Load the tensorstore array with cache configuration
+        try:
+            dataset_future = ts.open({
+                'driver': 'zarr',
+                'kvstore': kvstore,
+                'context': {
+                    'cache_pool': {
+                        'total_bytes_limit': bytes_limit
+                    }
+                },
+                'recheck_cached_data': 'open',
+            })
+            return dataset_future.result()
+    
+        except:
+            dataset_future = ts.open({
+                'driver': 'zarr3',
+                'kvstore': kvstore,
+                'context': {
+                    'cache_pool': {
+                        'total_bytes_limit': bytes_limit
+                    }
+                },
+                'recheck_cached_data': 'open',
+            })
+            return dataset_future.result()
+            
+    else:
+         dataset_future = ts.open({
+                'driver': driver,
+                'kvstore': kvstore,
+                'context': {
+                    'cache_pool': {
+                        'total_bytes_limit': bytes_limit
+                    }
+                },
+                'recheck_cached_data': 'open',
+            })
+         return dataset_future.result()
+
+
 import torch
 import cornucopia as cc
 import numpy as np
@@ -15,10 +179,11 @@ import nibabel as nib
 import sys
 
 
+
 #part of this code was written by Etienne Chollet (https://github.com/EtienneChollet/oct_vesselseg.git)
 
 
-def test_fun(dataloader,model,DEVICE='cuda',normalize=True, clip=False):    
+def test_fun(dataloader,model,DEVICE='cpu',normalize=True, clip=False):    
 #     """
 #     A testing function
 #     """
@@ -68,7 +233,8 @@ class RealVolume(object):
                  device:str='cuda',
                  dtype:torch.dtype=torch.float32,
                  patch_coords_:bool=False,
-                 trainee=None
+                 trainee=None,
+                 cutout=None
                  ):
 
         """
@@ -117,6 +283,7 @@ class RealVolume(object):
         self.device=device
         self.pad_it=pad_it
         self.padding_method=padding_method
+        self.cutout = cutout
         self.tensor, self.nifti, self.affine = self.load_tensor(
             self.input,
             normalize=self.normalize,
@@ -147,10 +314,28 @@ class RealVolume(object):
             #self.tensor_name = input.split('/')[-1].strip('.nii')
             # Get directory location of volume (will also use later for saving)
             #self.volume_dir = self.input.strip('.nii').strip(self.tensor_name).strip('/')
-            nifti = nib.load(input)
-            # Load tensor on device with dtype. Detach from graph.
-            tensor = nifti.get_fdata()
-            affine = nifti.affine
+            
+            ###CONNOR_EDIT
+            if 'nii' in input or 'mgz' in input or 'mgh' in input:
+                nifti = nib.load(input)
+                # Load tensor on device with dtype. Detach from graph.
+                tensor = nifti.get_fdata()
+                affine = nifti.affine
+                
+            else:
+                if self.cutout:
+                    x1,x2,y1,y2,z1,z2 = [int(x) for x in self.cutout[0].split(',')]
+                    tensor = open_tensor(fpath=input)[x1:x2,y1:y2,z1:z2].read().result()
+                else:
+                    tensor = open_tensor(fpath=input).read().result()
+                  
+                nifti=None
+                affine = np.array([[1.0,  0.0,  0.0,  0.0], 
+                [ 0.0,  1.00,  0.0, 0.0],
+                [ 0.0,  0.0,  1.0, 0.0],
+                [ 0.0,  0.0,  0.0, 1.0]])
+                
+                
         elif isinstance(input, torch.Tensor):
             tensor = input.to(self.device).to(self.dtype).detach()
             nifti = None
@@ -159,6 +344,7 @@ class RealVolume(object):
             tensor = self.normalize_volume(tensor)
         # Needs to be a tensor for padding operations
         tensor = torch.as_tensor(tensor, device=self.device).detach()
+        #tensor = torch.as_tensor(tensor, device='cpu').detach()
         if pad_it == True:
             tensor = self.pad_volume(tensor)
         if self.binarize == True:
@@ -220,8 +406,8 @@ class predictSingleImage(RealVolume,Dataset):
 #     A testing function
 #     """
 
-    def __init__(self, volume_path, model, DEVICE='cuda', normalize_patches=True, normalize_image=False, clip_input_patch=False, **kwargs):
-        super().__init__(volume_path, **kwargs)
+    def __init__(self, volume_path, model, DEVICE='cuda', normalize_patches=True, normalize_image=False, clip_input_patch=False, cutout=None, **kwargs):
+        super().__init__(volume_path, cutout=cutout, **kwargs)
         #here I run the init method of RealVolume with the **kwargs, which 
         #creates self.tensor, and self.affine *among other things)
 
@@ -231,6 +417,7 @@ class predictSingleImage(RealVolume,Dataset):
         self.normalize_image = normalize_image
         self.clip = clip_input_patch
         self.rescale = cc.QuantileTransform()
+        self.cutout= cutout
         #self.input_image = input_image
         # self.activation = _make_activation(activation)
 
@@ -340,7 +527,7 @@ class predictSingleImage(RealVolume,Dataset):
 class test_convolve(nn.Module):   
 
 
-    def __init__(self, volume_path, model,patch_size, step_size, DEVICE='cuda',normalize_patches=True, normalize_image = False, clip_input_patch=False):
+    def __init__(self, volume_path, model,patch_size, step_size, DEVICE='cuda',normalize_patches=True, normalize_image = False, clip_input_patch=False, cutout=None):
         super().__init__()
      
         self.model = model
@@ -352,7 +539,7 @@ class test_convolve(nn.Module):
         self.patch_size = patch_size
         self.step_size = step_size
         self.volume_path = volume_path
-       
+        self.cutout = cutout
         self.predictClass = predictSingleImage( 
                 self.volume_path,
                 self.model,
@@ -364,7 +551,8 @@ class test_convolve(nn.Module):
                 patch_size=self.patch_size,
                 step_size=self.step_size,
                 pad_it=True,
-                padding_method='reflect'
+                padding_method='reflect',
+                cutout=self.cutout
                         )
 
     def forward(self):
