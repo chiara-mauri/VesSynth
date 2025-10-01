@@ -85,11 +85,14 @@ if __name__ == "__main__":
     
     if modality == 'OCT':
         model_to_load = glob.glob(model_path + 'weights/OCT_model*')[0]
+        json_path = os.path.join(model_path, f'segnet_model_OCT.json') #json file containing backbone info
     elif modality == 'T2star':
         #model_to_load = glob.glob('./models/weights/T2star_model*')[0]
         model_to_load = glob.glob(model_path + 'weights/T2star_model4*')[0]
+        json_path = os.path.join(model_path, f'segnet_model_T2star.json')
     elif modality == 'TOF':
         model_to_load = glob.glob(model_path + 'weights/TOF_model*')[0]
+        json_path = os.path.join(model_path, f'segnet_model_TOF.json')
     elif modality == 'HipCT':
         model_to_load = glob.glob(model_path + 'weights/HipCT_model*')[0]
         json_path = os.path.join(model_path, f'segnet_model_HipCT.json')
@@ -108,8 +111,7 @@ if __name__ == "__main__":
     t1 = time.time()
     with torch.no_grad():
 
-        # Path to the JSON file containing the backbone dictionary
-        json_path = os.path.join(model_path, f'segnet_model.json')
+        
         # Read backbone_dict from the JSON file
         with open(json_path, 'r') as f:
             backbone_dict = json.load(f)
