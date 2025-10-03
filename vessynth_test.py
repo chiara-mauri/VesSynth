@@ -63,6 +63,7 @@ if __name__ == "__main__":
     step_size = 32
     final_activation = 'Sigmoid'
     save_native_space = True
+    DEVICE='cuda' if torch.cuda.is_available() else 'cpu'
 
     if mask_list is not None:
         for i,mask_ in enumerate(mask_list):
@@ -124,7 +125,7 @@ if __name__ == "__main__":
         
 
         print('Loading model: ', model_to_load)
-        DEVICE='cuda' if torch.cuda.is_available() else 'cpu'
+
         saved_model = torch.load(model_to_load, map_location=torch.device(DEVICE))
         #saved_model = torch.load(model_to_load) # for gpu
         
@@ -148,7 +149,7 @@ if __name__ == "__main__":
                 model,
                 patch_size,
                 step_size,
-                DEVICE='cuda' if torch.cuda.is_available() else 'cpu',
+                DEVICE=DEVICE,
                 normalize_patches=True, 
                 normalize_image=False,
                 clip_input_patch=False,

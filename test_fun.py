@@ -410,7 +410,7 @@ class predictSingleImage(RealVolume,Dataset):
 #     """
 
     def __init__(self, volume_path, model, DEVICE='cuda', normalize_patches=True, normalize_image=False, clip_input_patch=False, cutout=None, **kwargs):
-        super().__init__(volume_path, cutout=cutout, **kwargs)
+        super().__init__(volume_path, cutout=cutout, device=DEVICE, **kwargs)
         #here I run the init method of RealVolume with the **kwargs, which 
         #creates self.tensor, and self.affine *among other things)
 
