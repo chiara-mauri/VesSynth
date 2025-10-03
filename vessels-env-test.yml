@@ -41,4 +41,6 @@ dependencies:
       - torch-distmap==0.2.0
       - torch-interpol==0.2.6
       - tensorstore==0.1.67
+      - pandas==2.3.3
+      - boto3==1.40.42
 prefix: /autofs/space/mulan_001/users/chiara/miniforge3/envs/vessels-env-test
