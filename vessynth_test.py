@@ -124,8 +124,9 @@ if __name__ == "__main__":
         
 
         print('Loading model: ', model_to_load)
-        #saved_model = torch.load(model_to_load, map_location=torch.device('cpu'))
-        saved_model = torch.load(model_to_load) # for gpu
+        DEVICE='cuda' if torch.cuda.is_available() else 'cpu'
+        saved_model = torch.load(model_to_load, map_location=torch.device(DEVICE))
+        #saved_model = torch.load(model_to_load) # for gpu
         
         if 'model_state_dict' in saved_model:
             model.load_state_dict(saved_model['model_state_dict'])
