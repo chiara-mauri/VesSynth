@@ -8,7 +8,7 @@ First create a conda environment:
 
 ```
    conda env create -f vessels-env-test.yml
-   conda activate vessels-env-test.yml
+   conda activate vessels-env-test
 ```
 
 - Option 2: Create the environment and install the dependencies:
