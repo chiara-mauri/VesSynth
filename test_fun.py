@@ -346,7 +346,9 @@ class RealVolume(object):
         if normalize == True:
             tensor = self.normalize_volume(tensor)
         # Needs to be a tensor for padding operations
-        tensor = torch.as_tensor(tensor, device=self.device).detach()
+        print('Original data type: ', tensor.dtype)
+        tensor = torch.as_tensor(tensor, device=self.device, dtype=self.dtype).detach()
+        print('Data type after conversion to tensor: ', tensor.dtype)
         #tensor = torch.as_tensor(tensor, device='cpu').detach()
         if pad_it == True:
             tensor = self.pad_volume(tensor)
@@ -550,7 +552,7 @@ class test_convolve(nn.Module):
                 normalize_patches=self.normalize_patches, 
                 normalize_image=self.normalize_image,
                 clip_input_patch=self.clip,
-                dtype=torch.float32,
+                dtype=torch.float64,
                 patch_size=self.patch_size,
                 step_size=self.step_size,
                 pad_it=True,
