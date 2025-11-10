@@ -1,4 +1,4 @@
-name: vessels-env-test3
+name: vessynth-env
 channels:
   - conda-forge
 dependencies:
@@ -75,4 +75,4 @@ dependencies:
       - typing-extensions==4.15.0
       - tzdata==2025.2
       - urllib3==2.5.0
-prefix: /autofs/space/mulan_001/users/chiara/miniforge3/envs/vessels-env-test3
+prefix: /autofs/space/mulan_001/users/chiara/miniforge3/envs/vessynth-env
