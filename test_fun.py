@@ -343,6 +343,7 @@ class RealVolume(object):
             tensor = input.to(self.device).to(self.dtype).detach()
             nifti = None
         #volume_info(tensor, 'Raw')
+        print('Input shape: ', tensor.shape)
         if normalize == True:
             tensor = self.normalize_volume(tensor)
         # Needs to be a tensor for padding operations
@@ -373,6 +374,23 @@ class RealVolume(object):
         """
         Pad all dimensions of 3 dimensional tensor and update volume.
         """
+        print('Original shape before padding: ', tensor.shape)
+        #first padding for cases where one dimension is smaller than 128 or 64
+        pad = []
+        # F.pad requires the pad widths for the last dimension first.
+        for dim in [2, 1, 0]:  # start with width, height, then depth
+            current = tensor.shape[dim]
+            if current <= self.patch_size:
+                total_pad = self.patch_size - current + 1
+                pad_before = 0
+                pad_after = total_pad 
+            else:
+                pad_before = pad_after = 0
+            pad.extend([pad_before, pad_after])
+        self.original_shape = tensor.shape
+        tensor = torch.nn.functional.pad(tensor, pad, mode='constant', value=0)
+        print('Shape after first padding: ', tensor.shape)
+
         print('\nPadding volume...')
         # Input tensor must be 4 dimensional [1, n, n, n] to do padding
         padding = [self.patch_size] * 6 # Create 6 ele list of patch size
@@ -522,6 +540,9 @@ class predictSingleImage(RealVolume,Dataset):
         self.prediction /= redundancy
         self.prediction = self.prediction.cpu().numpy()
         del self.tensor #free memory
+        if np.shape(self.prediction) != self.original_shape:
+            print('Removing initial padding...')
+            self.prediction = self.prediction[0:self.original_shape[0],0:self.original_shape[1],0:self.original_shape[2]]
         return self.prediction, self.affine #return the prediction and the affine matrix of the input image
     
 
@@ -552,7 +573,7 @@ class test_convolve(nn.Module):
                 normalize_patches=self.normalize_patches, 
                 normalize_image=self.normalize_image,
                 clip_input_patch=self.clip,
-                dtype=torch.float64,
+                dtype=torch.float32,
                 patch_size=self.patch_size,
                 step_size=self.step_size,
                 pad_it=True,
