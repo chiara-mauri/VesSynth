@@ -12,7 +12,7 @@ cd Vessynth
 - Option 1: Use the provided yaml file:
 
 ```
-   conda env create -f vessynth-env.yml
+   conda env create -f vessynth-env.yml (or conda env create -f vessynth-env-macOS.yml for Mac)
    conda activate vessynth-env
 ```
 
