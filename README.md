@@ -2,11 +2,12 @@
 
 ## Installation
 
-1. Clone this repo
+1. Clone this repo and set it as your current working directory
 ``` 
 git clone https://github.com/chiara-mauri/Vessynth.git
+cd Vessynth
 ```
-2. Create a conda environment:
+2. Create and activate a conda environment:
 
 - Option 1: Use the provided yaml file:
 
@@ -15,7 +16,7 @@ git clone https://github.com/chiara-mauri/Vessynth.git
    conda activate vessynth-env
 ```
 
-- Option 2: Create the environment and manually install the dependencies:
+- Option 2: Create the environment and manually install the required packages:
 ```
    conda create -n vessynth-env python=3.10
    conda activate vessynth-env
