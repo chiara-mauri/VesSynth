@@ -168,14 +168,6 @@ if __name__ == "__main__":
             save_name = save_name.replace(".nii","")
             save_name = save_name.replace(".mgh","")
             
-            if (mask_list is not None):
-                if (mask_list[vol_index] is not None):
-
-                    mask = nib.load(mask_list[vol_index]).get_fdata()
-                    masked_count = np.count_nonzero((mask == 0) & (prediction > 0))
-                    print('voxel masked out in prediction: ', masked_count)
-                    prediction[mask == 0] = 0
-            
             if save_native_space:
                 print("Saving prediction in native space")
                 affine_save = affine
@@ -183,17 +175,30 @@ if __name__ == "__main__":
                 print("Saving prediction with identity affine")
                 affine_save = np.eye(4)
 
+
+            if (mask_list is not None):
+                if (mask_list[vol_index] is not None):
+
+                    mask = nib.load(mask_list[vol_index]).get_fdata()
+                    masked_count = np.count_nonzero((mask == 0) & (prediction > 0))
+                    print('voxel masked out in prediction: ', masked_count)
+                    save_img = nib.Nifti1Image(np.squeeze(prediction), affine=affine_save)
+                    nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob_unmasked.nii.gz")
+                    prediction[mask == 0] = 0
+
+            
+
         
 
             save_img = nib.Nifti1Image(np.squeeze(prediction), affine=affine_save)
-            nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob.mgz")    
+            nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob.nii.gz")    
             
             if threshold is not None:
                 for th in threshold:
                     print(f"Applying threshold: {th}")
                     prediction_binary = (prediction > th).astype(np.float32)
                     save_img = nib.Nifti1Image(np.squeeze(prediction_binary), affine=affine_save)
-                    nib.save(save_img,f"{outputdir}/{save_name}_vessels_binary_th_{th}.mgz")
+                    nib.save(save_img,f"{outputdir}/{save_name}_vessels_binary_th_{th}.nii.gz")
                     del prediction_binary
 
             else:
