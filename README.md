@@ -2,27 +2,27 @@
 
 ## Installation
 
-First create a conda environment:
+1. Clone this repo
+``` 
+git clone https://github.com/chiara-mauri/Vessynth.git
+```
+2. Create a conda environment:
 
 - Option 1: Use the provided yaml file:
 
 ```
-   conda env create -f vessels-env-test.yml
-   conda activate vessels-env-test
+   conda env create -f vessynth-env.yml
+   conda activate vessynth-env
 ```
 
-- Option 2: Create the environment and install the dependencies:
+- Option 2: Create the environment and manually install the dependencies:
 ```
-   conda create -n vessels-env-test python=3.10
-   conda activate vessels-env-test
-   conda install pytorch=1.13
+   conda create -n vessynth-env python=3.10
+   conda activate vessynth-env
    pip install cornucopia
+   pip install pandas==2.3.3 tensorstore==0.1.78 boto3==1.40.69
 ```
 
-Then clone this repo
-``` 
-git clone https://github.com/chiara-mauri/Vessynth.git
-```
 
 ## Download the models 
 
