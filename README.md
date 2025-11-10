@@ -21,7 +21,7 @@ cd Vessynth
    conda create -n vessynth-env python=3.10
    conda activate vessynth-env
    pip install cornucopia
-   pip install pandas==2.3.3 tensorstore==0.1.78 boto3==1.40.69
+   pip install pandas==2.3.3 tensorstore==0.1.78 boto3
 ```
 
 
