@@ -52,4 +52,4 @@ where the required arguments are:
 optional arguments are:
 - ```<threshold>``` value used to threshold the 'vessel probablity' to obtain a hard segmentation. default is 0.3
 - ```<mask_vol>``` a binary mask applied to the segmentation (e.g. 1 inside brain, 0 outside). Useful to remove noise outside brain
-- ```<zarr_cutout>``` for zarr input, a bounding box to identify ROI (e.g. ```-zc x1 x2 y1 y2 z1 z2```)
+- ```<zarr_cutout>``` for zarr input, a bounding box to identify ROI (```-zc x1 x2 y1 y2 z1 z2```)
