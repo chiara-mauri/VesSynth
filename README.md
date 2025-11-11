@@ -36,7 +36,7 @@ https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&
 Now you can use the method with:
 
 ```
-python path/to/repo/vessynth_test.py -i <vol> -o <outputDir> -mod <modality> [-th <threshold> -m <mask_vol>]
+python path/to/repo/vessynth_test.py -i <vol> -o <outputDir> -mod <modality> [-th <threshold> -m <mask_vol> -zc <zarr_cutout>]
 ```
 
 where the required arguments are:
@@ -47,7 +47,9 @@ where the required arguments are:
    - 'HipCT': for Hierarchical Phase-Contrast Tomography. Dark vessels. Resolution ~ 30um
    -  'OCT': for Optical Coherence Tomography. Dark vessels. Resolution ~ 20um
    -  'TOF': for in vivo Time-Of-Flight Magnetic Resonance angiography. Bright vessels. Resolution ~ tentatively from 160um iso to 500um x 500um x 800um
+   -  'fibers': for bright fibers/axons (experimental)
 
 optional arguments are:
 - ```<threshold>``` value used to threshold the 'vessel probablity' to obtain a hard segmentation. default is 0.3
 - ```<mask_vol>``` a binary mask applied to the segmentation (e.g. 1 inside brain, 0 outside). Useful to remove noise outside brain
+- ```<zarr_cutout>``` for zarr input, a bounding box to identify ROI, "x1,x2,y1,y2,z1,z2"
