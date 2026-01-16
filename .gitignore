@@ -1,5 +1,5 @@
 __pycache*
-models/weights/*
+models/*
 example_usage.sh
 example_usage_TOF.sh
 test.yaml
