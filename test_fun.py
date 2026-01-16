@@ -319,8 +319,13 @@ class RealVolume(object):
             ###CONNOR_EDIT
             if 'nii' in input or 'mgz' in input or 'mgh' in input:
                 nifti = nib.load(input)
-                # Load tensor on device with dtype. Detach from graph.
-                tensor = nifti.get_fdata()
+                print('Loaded nifti/mgz/mgh file: ', input)
+                print('Nifti shape: ', nifti.shape)
+                print('Nifti data type in header: ', nifti.get_data_dtype())
+               
+                tensor = nifti.get_fdata(dtype=np.float32)
+                print('np array data type after loading: ', tensor.dtype)
+                #tensor = np.asarray(nifti.dataobj)
                 affine = nifti.affine
 
             elif os.path.exists(os.path.join(input, 'zarr.json')):
@@ -429,7 +434,7 @@ class predictSingleImage(RealVolume,Dataset):
 #     A testing function
 #     """
 
-    def __init__(self, volume_path, model, DEVICE='cuda', normalize_patches=True, normalize_image=False, clip_input_patch=False, cutout=None, **kwargs):
+    def __init__(self, volume_path, model, DEVICE='cuda', normalize_patches=True, normalize_image=False, clip_input_patch=False, cutout=None, use_weights=True, **kwargs):
         super().__init__(volume_path, cutout=cutout, device=DEVICE, **kwargs)
         #here I run the init method of RealVolume with the **kwargs, which 
         #creates self.tensor, and self.affine *among other things)
@@ -441,6 +446,7 @@ class predictSingleImage(RealVolume,Dataset):
         self.clip = clip_input_patch
         self.rescale = cc.QuantileTransform()
         self.cutout= cutout
+        
         #self.input_image = input_image
         # self.activation = _make_activation(activation)
 
@@ -449,7 +455,7 @@ class predictSingleImage(RealVolume,Dataset):
         min_scale = 1/2
         half_filter_1d = torch.linspace(min_scale, torch.pi/2, self.patch_size//2).sin().to(self.device)
         filter_1d = torch.concat([half_filter_1d, half_filter_1d.flip(0)])
-        self.patch_weight = filter_1d[:, None, None] * filter_1d[None, :, None] * filter_1d[None, None, :]
+        self.patch_weight = filter_1d[:, None, None] * filter_1d[None, :, None] * filter_1d[None, None, :] if use_weights else None
 
         self.model.eval()
         self.model.to(self.device)   
@@ -508,7 +514,7 @@ class predictSingleImage(RealVolume,Dataset):
         # prediction_patch = self.activation(prediction_patch).squeeze()
 
         
-        self.prediction[coords[0], coords[1], coords[2]] += (prediction_patch * self.patch_weight) #imprint_tensor is big volume that we initialize as empty. 
+        self.prediction[coords[0], coords[1], coords[2]] += (prediction_patch * self.patch_weight) if self.patch_weight is not None else prediction_patch #imprint_tensor is big volume that we initialize as empty. 
         #then we sum all the predictions in there (weighted by the patch weights to give more importance to the center)
     
 
@@ -553,7 +559,7 @@ class predictSingleImage(RealVolume,Dataset):
 class test_convolve(nn.Module):   
 
 
-    def __init__(self, volume_path, model,patch_size, step_size, DEVICE='cuda',normalize_patches=True, normalize_image = False, clip_input_patch=False, cutout=None):
+    def __init__(self, volume_path, model,patch_size, step_size, DEVICE='cuda',normalize_patches=True, normalize_image = False, clip_input_patch=False, cutout=None, use_weights=True):
         super().__init__()
      
         self.model = model
@@ -578,7 +584,8 @@ class test_convolve(nn.Module):
                 step_size=self.step_size,
                 pad_it=True,
                 padding_method='reflect',
-                cutout=self.cutout
+                cutout=self.cutout,
+                use_weights=use_weights
                         )
 
     def forward(self):
