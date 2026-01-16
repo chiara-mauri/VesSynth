@@ -27,7 +27,8 @@ cd Vessynth
 
 ## Download the models 
 
-Download the 'models' folder from https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/vessynth/ and copy it in this repo
+Download the 'models' folder from https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/vessynth/ 
+unzip it and copy it in this repo
 <!-- from the Dandiset 1062/models_vessel_seg/
 https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&page=1 --> 
 
