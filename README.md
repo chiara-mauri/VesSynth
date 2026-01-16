@@ -27,8 +27,9 @@ cd Vessynth
 
 ## Download the models 
 
-Download the folder 'weights' from the Dandiset 1062/models_vessel_seg/
-https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&page=1 and copy it into the 'models' folder of this repo
+Download the 'weights' folder
+<!-- from the Dandiset 1062/models_vessel_seg/
+https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&page=1 --> and copy it into the 'models' folder of this repo
 
 
 ## Usage
