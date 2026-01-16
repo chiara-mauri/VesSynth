@@ -27,7 +27,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--outdir', type=str, required=True,
                         help='output directory to save predictions.')
     parser.add_argument('-mod', '--modality', type=str, required=True,
-                        help='Type of modality. Allowed: T2star, HipCT, OCT, TOF, fibers.')
+                        help='Type of modality. Allowed: T2star, HipCT, OCT, TOF, LSFM, fibers.')
     parser.add_argument('-t', '--threshold', type=float, nargs='+', default=[0.3],
                         help='Threshold to apply to the predictions. Default is 0.3. It can be a list of thresholds.')
     parser.add_argument('-m', '--masks', type=str, nargs='+', default=None,
@@ -35,14 +35,16 @@ if __name__ == "__main__":
                             Masks should be in the same order as the volumes. Default is None.')
     parser.add_argument('-zc', '--zarr_cutout', type=str, nargs='+', default=None,
                         help='A bounding box to identify ROI for the zarr input, "x1,x2,y1,y2,z1,z2" ')
+    parser.add_argument('-nw', '--no_weights', action='store_true',
+                        help='Whether not to use patch weighting during prediction. Default is using weights.')
 
    
     #parameters of volumes to predict on
     
     # parser.add_argument('--save-native-space', action='store_true',
     #                     help='Whether to also save the predictions in native space. Default is False.')
-    # parser.add_argument('--patch-size', type=int, default=128,
-    #                     help='size of UNet input (and size of sliding prediction patch). Default is 128.')
+    parser.add_argument('--patch_size', type=int, default=128,
+                        help='size of UNet input (and size of sliding prediction patch). Default is 128.')
     # parser.add_argument('--step-size', type=int, default=32,
     #                     help='step size (in vx) between adjacent prediction patches. Default is 32.')
 
@@ -57,10 +59,13 @@ if __name__ == "__main__":
     threshold = args.threshold
     mask_list = args.masks
     zarr_cutout = args.zarr_cutout
+    use_weights = not args.no_weights
+    patch_size = args.patch_size
+    step_size = patch_size // 4  #fixed step size as quarter of patch size
 
     #hardcoded parameters
-    patch_size = 128
-    step_size = 32
+    #patch_size = 128
+    #step_size = 32
     final_activation = 'Sigmoid'
     save_native_space = True
     DEVICE='cuda' if torch.cuda.is_available() else 'cpu'
@@ -88,20 +93,23 @@ if __name__ == "__main__":
         model_to_load = glob.glob(model_path + 'weights/OCT_model*')[0]
         json_path = os.path.join(model_path, f'segnet_model_OCT.json') #json file containing backbone info
     elif modality == 'T2star':
-        #model_to_load = glob.glob('./models/weights/T2star_model*')[0]
-        model_to_load = glob.glob(model_path + 'weights/T2star_model4*')[0]
+        #model_to_load = glob.glob('./models/weights/T2star_model4*')[0]
+        model_to_load = glob.glob(model_path + 'weights/T2star_model23*')[0]
         json_path = os.path.join(model_path, f'segnet_model_T2star.json')
     elif modality == 'TOF':
-        model_to_load = glob.glob(model_path + 'weights/TOF_model*')[0]
+        model_to_load = glob.glob(model_path + 'weights/TOF_model54*')[0]
         json_path = os.path.join(model_path, f'segnet_model_TOF.json')
     elif modality == 'HipCT':
-        model_to_load = glob.glob(model_path + 'weights/HipCT_model*')[0]
+        model_to_load = glob.glob(model_path + 'weights/HipCT_model50*')[0]
         json_path = os.path.join(model_path, f'segnet_model_HipCT.json')
     elif modality == 'fibers':    
         model_to_load = glob.glob(model_path + 'weights/fibers_model14*')[0]
         json_path = os.path.join(model_path, f'segnet_model_fibers.json')
+    elif modality == 'LSFM':
+        model_to_load = glob.glob(model_path + 'weights/LSFM_model14*')[0]
+        json_path = os.path.join(model_path, f'segnet_model_LSFM.json')    
     else:
-        raise ValueError('Modality not recognized. Allowed: OCT, T2star, HipCT, TOF, fibers.')
+        raise ValueError('Modality not recognized. Allowed: OCT, T2star, HipCT, TOF, LSFM, fibers.')
     
 
     if not os.path.exists(outputdir):
@@ -153,7 +161,8 @@ if __name__ == "__main__":
                 normalize_patches=True, 
                 normalize_image=False,
                 clip_input_patch=False,
-                cutout=zarr_cutout
+                cutout=zarr_cutout,
+                use_weights=use_weights
                 )() 
 
 
