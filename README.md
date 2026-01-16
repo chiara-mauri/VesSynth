@@ -27,10 +27,10 @@ cd Vessynth
 
 ## Download the models 
 
-Download the 'weights' folder from https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/vessynth/
+Download the 'models' folder from https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/vessynth/ and copy it in this repo
 <!-- from the Dandiset 1062/models_vessel_seg/
 https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&page=1 --> 
-and copy it into the 'models' folder of this repo
+
 
 
 ## Usage
