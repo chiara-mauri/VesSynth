@@ -122,6 +122,11 @@ def open_tensor(fpath=None, kvstore=None, driver='zarr', bytes_limit=100_000_000
     Returns:
         tensorstore.Dataset: The opened tensorstore dataset.
     """
+
+    # I have no idea why but this breaks if there is a ./ at the start of the file path
+    if fpath and fpath[0:2] == "./":
+        fpath = fpath[2:]
+
     # If kvstore is not provided, create it from fpath
     if kvstore is None:
         kvstore = create_kvstore(fpath, store='file', AWS_param=None)
@@ -131,7 +136,7 @@ def open_tensor(fpath=None, kvstore=None, driver='zarr', bytes_limit=100_000_000
         # Load the tensorstore array with cache configuration
         try:
             dataset_future = ts.open({
-                'driver': 'zarr',
+                'driver': driver,
                 'kvstore': kvstore,
                 'context': {
                     'cache_pool': {
@@ -144,7 +149,7 @@ def open_tensor(fpath=None, kvstore=None, driver='zarr', bytes_limit=100_000_000
     
         except:
             dataset_future = ts.open({
-                'driver': 'zarr3',
+                'driver': 'zarr',
                 'kvstore': kvstore,
                 'context': {
                     'cache_pool': {
@@ -328,17 +333,18 @@ class RealVolume(object):
                 #tensor = np.asarray(nifti.dataobj)
                 affine = nifti.affine
 
-            elif os.path.exists(os.path.join(input, 'zarr.json')):
-
+            elif os.path.exists(os.path.join(input, 'zarr.json')) or os.path.exists(os.path.join(input, '.zarray')): 
+                driver = 'zarr2'
+                if os.path.exists(os.path.join(input, 'zarr.json')):
+                    driver = 'zarr3'
                 if self.cutout:
                     x1,x2,y1,y2,z1,z2 = [int(x) for x in self.cutout[0].split(',')]
-                    tensor = open_tensor(fpath=input)[x1:x2,y1:y2,z1:z2].read().result()
+                    tensor = open_tensor(fpath=input, driver=driver)[x1:x2,y1:y2,z1:z2].read().result()
                 else:
-                    tensor = open_tensor(fpath=input).read().result()
-                  
+                    tensor = open_tensor(fpath=input, driver=driver).read().result()
                 nifti=None
                 affine = np.array([[1.0,  0.0,  0.0,  0.0], 
-                [ 0.0,  1.00,  0.0, 0.0],
+                [ 0.0,  1.0,  0.0, 0.0],
                 [ 0.0,  0.0,  1.0, 0.0],
                 [ 0.0,  0.0,  0.0, 1.0]])
             else:
