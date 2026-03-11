@@ -16,6 +16,11 @@ from utils.networks import SegNet
 import os
 import numpy as np
 import json
+import math
+import zarr
+from ome_zarr.io import parse_url
+
+
 
 
 
@@ -87,7 +92,7 @@ if __name__ == "__main__":
     print(f"Predicting with patch size {patch_size} and step size {step_size}")
 
 
-    model_path = './models/'
+    model_path = './Vessynth/models/'
     
     if modality == 'OCT':
         model_to_load = glob.glob(model_path + 'weights/OCT_model*')[0]
@@ -100,10 +105,10 @@ if __name__ == "__main__":
         model_to_load = glob.glob(model_path + 'weights/TOF_model54*')[0]
         json_path = os.path.join(model_path, f'segnet_model_TOF.json')
     elif modality == 'HipCT':
-        model_to_load = glob.glob(model_path + 'weights/HipCT_model50*')[0]
+        model_to_load = glob.glob(model_path + 'weights/HipCT_model14_epoch100*')[0]
         json_path = os.path.join(model_path, f'segnet_model_HipCT.json')
     elif modality == 'fibers':    
-        model_to_load = glob.glob(model_path + 'weights/fibers_model14*')[0]
+        model_to_load = glob.glob(model_path + 'weights/model3_epoch206*')[0]
         json_path = os.path.join(model_path, f'segnet_model_fibers.json')
     elif modality == 'LSFM':
         model_to_load = glob.glob(model_path + 'weights/LSFM_model14*')[0]
@@ -149,70 +154,130 @@ if __name__ == "__main__":
         print(f"\nStarting predictions on {len(volumes)} volumes...")
         for vol_index, vol in enumerate(volumes):
         
-
             print(f"Processing volume {vol_index + 1}/{len(volumes)}: {vol}")
-            
-            prediction, affine = test_convolve(
-                vol,
-                model,
-                patch_size,
-                step_size,
-                DEVICE=DEVICE,
-                normalize_patches=True, 
-                normalize_image=False,
-                clip_input_patch=False,
-                cutout=zarr_cutout,
-                use_weights=use_weights
-                )() 
 
-
-            print(f"Prediction shape: {prediction.shape}")
-            
-
-            # Save the predictions
-        
             save_name=os.path.basename(vol)
             save_name = save_name.replace(".mgz","")
             save_name = save_name.replace(".nii.gz","")
             save_name = save_name.replace(".nii","")
             save_name = save_name.replace(".mgh","")
             
-            if save_native_space:
-                print("Saving prediction in native space")
-                affine_save = affine
-            else:
-                print("Saving prediction with identity affine")
-                affine_save = np.eye(4)
+            split_up = False
+            X = 1
+            Y = 1
+            Z = 1
+            cut_size = 1024
+            if len(outputdir) > len(".zarr") and outputdir[-len(".zarr"):] == ".zarr" and zarr_cutout is not None:
+                split_up = True
+                zarr_split = zarr_cutout[0].split(",")
+                X =  int(math.ceil((int(zarr_split[1]) - int(zarr_split[0]))/cut_size))
+                Y =  int(math.ceil((int(zarr_split[3]) - int(zarr_split[2]))/cut_size))
+                Z =  int(math.ceil((int(zarr_split[5]) - int(zarr_split[4]))/cut_size))
+
+                store = parse_url(outputdir, mode="a").store
+
+                root = zarr.group(store=store, overwrite=True)
+
+                zarr_dataset = root.create_dataset(
+                    "prob",
+                    shape=(
+                        int(zarr_split[1]) - int(zarr_split[0]),
+                        int(zarr_split[3]) - int(zarr_split[2]),
+                        int(zarr_split[5]) - int(zarr_split[4])
+                    ),
+                    chunks=(128, 128, 128),
+                    dtype="float32"
+                )
+                if threshold is not None:
+                    zarr_dataset_thresh = []
+                    for th in threshold:
+                        zarr_dataset_thresh.append(root.create_dataset(
+                            f"threshold_{th}",
+                            shape=(
+                                int(zarr_split[1]) - int(zarr_split[0]),
+                                int(zarr_split[3]) - int(zarr_split[2]),
+                                int(zarr_split[5]) - int(zarr_split[4])
+                            ),
+                            chunks=(128, 128, 128),
+                            dtype="float32"
+                        ))
 
 
-            if (mask_list is not None):
-                if (mask_list[vol_index] is not None):
+            slice_ind = 0
+            for x in range(X):
+                for y in range(Y):
+                    for z in range(Z):
+                        zarr_tmp = zarr_cutout
+                        if split_up:
+                            slice_ind += 1
+                            print("running prediction slice ", slice_ind, "/", X*Y*Z)
+                            zarr_cutout_split = zarr_cutout[0].split(",")
+                            zarr_cutout_split[1] = str(min(cut_size*(x+1) + int(zarr_cutout_split[0]), int(zarr_cutout_split[1])))
+                            zarr_cutout_split[0] = str(min(cut_size*x + int(zarr_cutout_split[0]), int(zarr_cutout_split[1])))
+                            zarr_cutout_split[3] = str(min(cut_size*(y+1) + int(zarr_cutout_split[2]), int(zarr_cutout_split[3])))
+                            zarr_cutout_split[2] = str(min(cut_size*y + int(zarr_cutout_split[2]), int(zarr_cutout_split[3])))
+                            zarr_cutout_split[5] = str(min(cut_size*(z+1) + int(zarr_cutout_split[4]), int(zarr_cutout_split[5])))
+                            zarr_cutout_split[4] = str(min(cut_size*z + int(zarr_cutout_split[4]), int(zarr_cutout_split[5])))
+                            zarr_tmp = [",".join(zarr_cutout_split)]
+                        prediction, affine = test_convolve(
+                            vol,
+                            model,
+                            patch_size,
+                            step_size,
+                            DEVICE=DEVICE,
+                            normalize_patches=True, 
+                            normalize_image=False,
+                            clip_input_patch=False,
+                            cutout=zarr_tmp,
+                            use_weights=use_weights
+                            )() 
+                        
+                        if split_up:
+                            print("saving prediction to zarr file")
+                            sliceX = [int(zarr_cutout_split[0]) - int(zarr_split[0]), int(zarr_cutout_split[1]) - int(zarr_split[0])]
+                            sliceY = [int(zarr_cutout_split[2]) - int(zarr_split[2]), int(zarr_cutout_split[3]) - int(zarr_split[2])]
+                            sliceZ = [int(zarr_cutout_split[4]) - int(zarr_split[4]), int(zarr_cutout_split[5]) - int(zarr_split[4])]
+                            region = (slice(sliceX[0], sliceX[1]), slice(sliceY[0], sliceY[1]), slice(sliceZ[0], sliceZ[1]))
+                            zarr_dataset[sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] = prediction
+                            if threshold is not None:
+                                for th_idx in range(len(threshold)):
+                                    prediction_binary = (prediction > threshold[th_idx]).astype(np.float32)
+                                    zarr_dataset_thresh[th_idx][sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] = prediction_binary
+                                    del prediction_binary
+                        
+                        else:
+                            if save_native_space:
+                                print("Saving prediction in native space")
+                                affine_save = affine
+                            else:
+                                print("Saving prediction with identity affine")
+                                affine_save = np.eye(4)
 
-                    mask = nib.load(mask_list[vol_index]).get_fdata()
-                    masked_count = np.count_nonzero((mask == 0) & (prediction > 0))
-                    print('voxel masked out in prediction: ', masked_count)
-                    save_img = nib.Nifti1Image(np.squeeze(prediction), affine=affine_save)
-                    nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob_unmasked.nii.gz")
-                    prediction[mask == 0] = 0
 
-            
+                            if (mask_list is not None):
+                                if (mask_list[vol_index] is not None):
 
-        
+                                    mask = nib.load(mask_list[vol_index]).get_fdata()
+                                    masked_count = np.count_nonzero((mask == 0) & (prediction > 0))
+                                    print('voxel masked out in prediction: ', masked_count)
+                                    save_img = nib.Nifti1Image(np.squeeze(prediction), affine=affine_save)
+                                    nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob_unmasked.nii.gz")
+                                    prediction[mask == 0] = 0
 
-            save_img = nib.Nifti1Image(np.squeeze(prediction), affine=affine_save)
-            nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob.nii.gz")    
-            
-            if threshold is not None:
-                for th in threshold:
-                    print(f"Applying threshold: {th}")
-                    prediction_binary = (prediction > th).astype(np.float32)
-                    save_img = nib.Nifti1Image(np.squeeze(prediction_binary), affine=affine_save)
-                    nib.save(save_img,f"{outputdir}/{save_name}_vessels_binary_th_{th}.nii.gz")
-                    del prediction_binary
+                            save_img = nib.Nifti1Image(np.squeeze(prediction), affine=affine_save)
+                            nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob.nii.gz")    
+                            
+                            if threshold is not None:
+                                for th in threshold:
+                                    print(f"Applying threshold: {th}")
+                                    prediction_binary = (prediction > th).astype(np.float32)
+                                    save_img = nib.Nifti1Image(np.squeeze(prediction_binary), affine=affine_save)
+                                    nib.save(save_img,f"{outputdir}/{save_name}_vessels_binary_th_{th}.nii.gz")
+                                    del prediction_binary
 
-            else:
-                print("No threshold applied, saving only raw prediction")
-            
-            del prediction
+                            else:
+                                print("No threshold applied, saving only raw prediction")
+                    
+                        del prediction
         t2 = time.time()
         print(f"Process took {round((t2-t1)/60, 2)} min")
