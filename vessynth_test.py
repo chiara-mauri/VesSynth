@@ -22,15 +22,13 @@ from ome_zarr.io import parse_url
 
 
 
-
-
 if __name__ == "__main__":   
     parser = argparse.ArgumentParser(description='Method for vessel segmentation.')
 
     parser.add_argument('-i', '--inpvol', type=str, nargs='+', required=True,
                         help='path to volumes you want to predict on. It can be a list of volumes.') 
     parser.add_argument('-o', '--outdir', type=str, required=True,
-                        help='output directory to save predictions.')
+                        help='output directory to save predictions. If ends with .ome.zarr and you specify a zarr_cutout will output in ome_zarr format')
     parser.add_argument('-mod', '--modality', type=str, required=True,
                         help='Type of modality. Allowed: T2star, HipCT, OCT, TOF, LSFM, fibers.')
     parser.add_argument('-t', '--threshold', type=float, nargs='+', default=[0.3],
@@ -92,7 +90,7 @@ if __name__ == "__main__":
     print(f"Predicting with patch size {patch_size} and step size {step_size}")
 
 
-    model_path = './Vessynth/models/'
+    model_path = './models/'
     
     if modality == 'OCT':
         model_to_load = glob.glob(model_path + 'weights/OCT_model*')[0]
@@ -105,10 +103,10 @@ if __name__ == "__main__":
         model_to_load = glob.glob(model_path + 'weights/TOF_model54*')[0]
         json_path = os.path.join(model_path, f'segnet_model_TOF.json')
     elif modality == 'HipCT':
-        model_to_load = glob.glob(model_path + 'weights/HipCT_model14_epoch100*')[0]
+        model_to_load = glob.glob(model_path + 'weights/HipCT_model50*')[0]
         json_path = os.path.join(model_path, f'segnet_model_HipCT.json')
     elif modality == 'fibers':    
-        model_to_load = glob.glob(model_path + 'weights/model3_epoch206*')[0]
+        model_to_load = glob.glob(model_path + 'weights/fibers_model3_*')[0]
         json_path = os.path.join(model_path, f'segnet_model_fibers.json')
     elif modality == 'LSFM':
         model_to_load = glob.glob(model_path + 'weights/LSFM_model14*')[0]
@@ -162,13 +160,13 @@ if __name__ == "__main__":
             save_name = save_name.replace(".nii","")
             save_name = save_name.replace(".mgh","")
             
-            split_up = False
+            use_zarr = False
             X = 1
             Y = 1
             Z = 1
             cut_size = 1024
-            if len(outputdir) > len(".zarr") and outputdir[-len(".zarr"):] == ".zarr" and zarr_cutout is not None:
-                split_up = True
+            if len(outputdir) > len(".ome.zarr") and outputdir[-len(".ome.zarr"):] == ".ome.zarr" and zarr_cutout is not None:
+                use_zarr = True
                 zarr_split = zarr_cutout[0].split(",")
                 X =  int(math.ceil((int(zarr_split[1]) - int(zarr_split[0]))/cut_size))
                 Y =  int(math.ceil((int(zarr_split[3]) - int(zarr_split[2]))/cut_size))
@@ -202,13 +200,27 @@ if __name__ == "__main__":
                             dtype="float32"
                         ))
 
+                if (mask_list is not None):
+                    if (mask_list[vol_index] is not None):
+                        unmasked_dataset = root.create_dataset(
+                            "unmasked",
+                            shape=(
+                                int(zarr_split[1]) - int(zarr_split[0]),
+                                int(zarr_split[3]) - int(zarr_split[2]),
+                                int(zarr_split[5]) - int(zarr_split[4])
+                            ),
+                            chunks=(128, 128, 128),
+                            dtype="float32"
+                        )
+                        mask = nib.load(mask_list[vol_index]).get_fdata()
 
             slice_ind = 0
             for x in range(X):
                 for y in range(Y):
                     for z in range(Z):
-                        zarr_tmp = zarr_cutout
-                        if split_up:
+                        
+                        current_zarr_cutout = zarr_cutout
+                        if use_zarr:
                             slice_ind += 1
                             print("running prediction slice ", slice_ind, "/", X*Y*Z)
                             zarr_cutout_split = zarr_cutout[0].split(",")
@@ -218,7 +230,8 @@ if __name__ == "__main__":
                             zarr_cutout_split[2] = str(min(cut_size*y + int(zarr_cutout_split[2]), int(zarr_cutout_split[3])))
                             zarr_cutout_split[5] = str(min(cut_size*(z+1) + int(zarr_cutout_split[4]), int(zarr_cutout_split[5])))
                             zarr_cutout_split[4] = str(min(cut_size*z + int(zarr_cutout_split[4]), int(zarr_cutout_split[5])))
-                            zarr_tmp = [",".join(zarr_cutout_split)]
+                            current_zarr_cutout = [",".join(zarr_cutout_split)]
+                        
                         prediction, affine = test_convolve(
                             vol,
                             model,
@@ -228,32 +241,48 @@ if __name__ == "__main__":
                             normalize_patches=True, 
                             normalize_image=False,
                             clip_input_patch=False,
-                            cutout=zarr_tmp,
+                            cutout=current_zarr_cutout,
                             use_weights=use_weights
-                            )() 
+                            )()
+
+                        if save_native_space:
+                            print("Saving prediction in native space")
+                            affine_save = affine
+                        else:
+                            print("Saving prediction with identity affine")
+                            affine_save = np.eye(4)
                         
-                        if split_up:
+                        if use_zarr:
                             print("saving prediction to zarr file")
                             sliceX = [int(zarr_cutout_split[0]) - int(zarr_split[0]), int(zarr_cutout_split[1]) - int(zarr_split[0])]
                             sliceY = [int(zarr_cutout_split[2]) - int(zarr_split[2]), int(zarr_cutout_split[3]) - int(zarr_split[2])]
                             sliceZ = [int(zarr_cutout_split[4]) - int(zarr_split[4]), int(zarr_cutout_split[5]) - int(zarr_split[4])]
                             region = (slice(sliceX[0], sliceX[1]), slice(sliceY[0], sliceY[1]), slice(sliceZ[0], sliceZ[1]))
+                            
+                            if (mask_list is not None):
+                                if (mask_list[vol_index] is not None):
+                                    unmasked_dataset.attrs["coordinateTransformations"] = [
+                                        {"type": "matrix", "matrix": affine_save.tolist()}
+                                    ]
+                                    unmasked_dataset[sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] = prediction
+                                    prediction[mask[sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] == 0] = 0
+                            
+                            zarr_dataset.attrs["coordinateTransformations"] = [
+                                {"type": "matrix", "matrix": affine_save.tolist()}
+                            ]
                             zarr_dataset[sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] = prediction
+                            
                             if threshold is not None:
                                 for th_idx in range(len(threshold)):
                                     prediction_binary = (prediction > threshold[th_idx]).astype(np.float32)
+                                    zarr_dataset_thresh[th_idx].attrs["coordinateTransformations"] = [
+                                        {"type": "matrix", "matrix": affine_save.tolist()}
+                                    ]
                                     zarr_dataset_thresh[th_idx][sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] = prediction_binary
                                     del prediction_binary
+
                         
                         else:
-                            if save_native_space:
-                                print("Saving prediction in native space")
-                                affine_save = affine
-                            else:
-                                print("Saving prediction with identity affine")
-                                affine_save = np.eye(4)
-
-
                             if (mask_list is not None):
                                 if (mask_list[vol_index] is not None):
 
