@@ -20,7 +20,37 @@ import math
 import zarr
 from ome_zarr.io import parse_url
 
+import numpy as np
 
+def downsample_by_2(arr):
+    z, y, x = arr.shape
+
+    # Compute next even sizes
+    z2 = z if z % 2 == 0 else z + 1
+    y2 = y if y % 2 == 0 else y + 1
+    x2 = x if x % 2 == 0 else x + 1
+
+    # Pad with zeros to reach even dimensions
+    pad_z = z2 - z
+    pad_y = y2 - y
+    pad_x = x2 - x
+
+    arr2 = np.pad(
+        arr,
+        pad_width=((0, pad_z), (0, pad_y), (0, pad_x)),
+        mode="constant",
+        constant_values=0
+    )
+
+    # Reshape into 2×2×2 blocks
+    arr_blocks = arr2.reshape(
+        z2//2, 2,
+        y2//2, 2,
+        x2//2, 2
+    )
+
+    # Max over each block
+    return arr_blocks.max(axis=(1, 3, 5))
 
 if __name__ == "__main__":   
     parser = argparse.ArgumentParser(description='Method for vessel segmentation.')
@@ -106,7 +136,7 @@ if __name__ == "__main__":
         model_to_load = glob.glob(model_path + 'weights/HipCT_model50*')[0]
         json_path = os.path.join(model_path, f'segnet_model_HipCT.json')
     elif modality == 'fibers':    
-        model_to_load = glob.glob(model_path + 'weights/fibers_model3_*')[0]
+        model_to_load = glob.glob(model_path + 'weights/fibers_model14*')[0]
         json_path = os.path.join(model_path, f'segnet_model_fibers.json')
     elif modality == 'LSFM':
         model_to_load = glob.glob(model_path + 'weights/LSFM_model14*')[0]
@@ -172,47 +202,64 @@ if __name__ == "__main__":
                 Y =  int(math.ceil((int(zarr_split[3]) - int(zarr_split[2]))/cut_size))
                 Z =  int(math.ceil((int(zarr_split[5]) - int(zarr_split[4]))/cut_size))
 
-                store = parse_url(outputdir, mode="a").store
+                prob_store = parse_url(outputdir, mode="a").store
 
-                root = zarr.group(store=store, overwrite=True)
-
-                zarr_dataset = root.create_dataset(
-                    "prob",
-                    shape=(
-                        int(zarr_split[1]) - int(zarr_split[0]),
-                        int(zarr_split[3]) - int(zarr_split[2]),
-                        int(zarr_split[5]) - int(zarr_split[4])
-                    ),
-                    chunks=(128, 128, 128),
-                    dtype="float32"
-                )
+                prob_root = zarr.group(store=prob_store, overwrite=True)
+                outputdir_start = outputdir[:-len(".ome.zarr")]
+                thresh_roots = []
                 if threshold is not None:
-                    zarr_dataset_thresh = []
                     for th in threshold:
-                        zarr_dataset_thresh.append(root.create_dataset(
-                            f"threshold_{th}",
-                            shape=(
-                                int(zarr_split[1]) - int(zarr_split[0]),
-                                int(zarr_split[3]) - int(zarr_split[2]),
-                                int(zarr_split[5]) - int(zarr_split[4])
-                            ),
-                            chunks=(128, 128, 128),
-                            dtype="float32"
-                        ))
+                        print("testing")
+                        thresh_store = parse_url(f"{outputdir_start}_th_{str(th).replace('.', '_')}.ome.zarr", mode="a").store
+                        thresh_roots.append(zarr.group(store=thresh_store, overwrite=True))
 
                 if (mask_list is not None):
                     if (mask_list[vol_index] is not None):
-                        unmasked_dataset = root.create_dataset(
-                            "unmasked",
+                        unmasked_store = parse_url(f"{outputdir_start}_unmasked.ome.zarr", mode="a").store
+                        unmasked_root = zarr.group(store=unmasked_store, overwrite=True)
+                        mask = nib.load(mask_list[vol_index]).get_fdata()
+
+                prob_datasets = []
+                thresh_datasets_lists = []
+                unmasked_datasets = []
+                for i in range(8):
+                    prob_datasets.append(prob_root.create_dataset(
+                        f"{i}",
+                        shape=(
+                            int(math.ceil((int(zarr_split[1]) - int(zarr_split[0]))/(2**i))),
+                            int(math.ceil((int(zarr_split[3]) - int(zarr_split[2]))/(2**i))),
+                            int(math.ceil((int(zarr_split[5]) - int(zarr_split[4]))/(2**i)))
+                        ),
+                        chunks=(128, 128, 128),
+                        dtype="float16"
+                    ))
+                    datasets_thresh = []
+                    for thresh_root in thresh_roots:
+                        datasets_thresh.append(thresh_root.create_dataset(
+                            f"{i}",
                             shape=(
-                                int(zarr_split[1]) - int(zarr_split[0]),
-                                int(zarr_split[3]) - int(zarr_split[2]),
-                                int(zarr_split[5]) - int(zarr_split[4])
+                                int(math.ceil((int(zarr_split[1]) - int(zarr_split[0]))/(2**i))),
+                                int(math.ceil((int(zarr_split[3]) - int(zarr_split[2]))/(2**i))),
+                                int(math.ceil((int(zarr_split[5]) - int(zarr_split[4]))/(2**i)))
                             ),
                             chunks=(128, 128, 128),
-                            dtype="float32"
-                        )
-                        mask = nib.load(mask_list[vol_index]).get_fdata()
+                            dtype="uint8"
+                        ))
+                    thresh_datasets_lists.append(datasets_thresh)
+                    if (mask_list is not None):
+                        if (mask_list[vol_index] is not None):
+                            unmasked_datasets.append(unmasked_root.create_dataset(
+                                f"{i}",
+                                shape=(
+                                    int(math.ceil((int(zarr_split[1]) - int(zarr_split[0]))/(2**i))),
+                                    int(math.ceil((int(zarr_split[3]) - int(zarr_split[2]))/(2**i))),
+                                    int(math.ceil((int(zarr_split[5]) - int(zarr_split[4]))/(2**i)))
+                                ),
+                                chunks=(128, 128, 128),
+                                dtype="float16"
+                            ))
+
+
 
             slice_ind = 0
             for x in range(X):
@@ -253,33 +300,45 @@ if __name__ == "__main__":
                             affine_save = np.eye(4)
                         
                         if use_zarr:
+                            prediction = prediction.astype(np.float16)
                             print("saving prediction to zarr file")
-                            sliceX = [int(zarr_cutout_split[0]) - int(zarr_split[0]), int(zarr_cutout_split[1]) - int(zarr_split[0])]
-                            sliceY = [int(zarr_cutout_split[2]) - int(zarr_split[2]), int(zarr_cutout_split[3]) - int(zarr_split[2])]
-                            sliceZ = [int(zarr_cutout_split[4]) - int(zarr_split[4]), int(zarr_cutout_split[5]) - int(zarr_split[4])]
-                            region = (slice(sliceX[0], sliceX[1]), slice(sliceY[0], sliceY[1]), slice(sliceZ[0], sliceZ[1]))
+                            slice_x = [int(zarr_cutout_split[0]) - int(zarr_split[0]), int(zarr_cutout_split[1]) - int(zarr_split[0])]
+                            slice_y = [int(zarr_cutout_split[2]) - int(zarr_split[2]), int(zarr_cutout_split[3]) - int(zarr_split[2])]
+                            slice_z = [int(zarr_cutout_split[4]) - int(zarr_split[4]), int(zarr_cutout_split[5]) - int(zarr_split[4])]
+                            region = (slice(slice_x[0], slice_x[1]), slice(slice_y[0], slice_y[1]), slice(slice_z[0], slice_z[1]))
                             
                             if (mask_list is not None):
                                 if (mask_list[vol_index] is not None):
-                                    unmasked_dataset.attrs["coordinateTransformations"] = [
-                                        {"type": "matrix", "matrix": affine_save.tolist()}
-                                    ]
-                                    unmasked_dataset[sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] = prediction
-                                    prediction[mask[sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] == 0] = 0
+                                    unmasked = prediction
+                                    prediction[mask[slice_x[0]:slice_x[1], slice_y[0]:slice_y[1], slice_z[0]:slice_z[1]] == 0] = 0
                             
-                            zarr_dataset.attrs["coordinateTransformations"] = [
-                                {"type": "matrix", "matrix": affine_save.tolist()}
-                            ]
-                            zarr_dataset[sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] = prediction
                             
-                            if threshold is not None:
-                                for th_idx in range(len(threshold)):
-                                    prediction_binary = (prediction > threshold[th_idx]).astype(np.float32)
-                                    zarr_dataset_thresh[th_idx].attrs["coordinateTransformations"] = [
-                                        {"type": "matrix", "matrix": affine_save.tolist()}
-                                    ]
-                                    zarr_dataset_thresh[th_idx][sliceX[0]:sliceX[1], sliceY[0]:sliceY[1], sliceZ[0]:sliceZ[1]] = prediction_binary
-                                    del prediction_binary
+                            for density in range(8):
+                                d_slice_x=[int(math.ceil(slice_x[0]/(2**density))), int(math.ceil(slice_x[1]/(2**density)))]
+                                d_slice_y=[int(math.ceil(slice_y[0]/(2**density))), int(math.ceil(slice_y[1]/(2**density)))]
+                                d_slice_z=[int(math.ceil(slice_z[0]/(2**density))), int(math.ceil(slice_z[1]/(2**density)))]
+                                prob_datasets[density].attrs["coordinateTransformations"] = [
+                                    {"type": "matrix", "matrix": affine_save.tolist()}
+                                ]
+                                prob_datasets[density][d_slice_x[0]:d_slice_x[1], d_slice_y[0]:d_slice_y[1], d_slice_z[0]:d_slice_z[1]] = prediction
+                                
+                                if threshold is not None:
+                                    for th_idx in range(len(threshold)):
+                                        prediction_binary = (prediction > threshold[th_idx]).astype(np.uint8)
+                                        thresh_datasets_lists[density][th_idx].attrs["coordinateTransformations"] = [
+                                            {"type": "matrix", "matrix": affine_save.tolist()}
+                                        ]
+                                        thresh_datasets_lists[density][th_idx][d_slice_x[0]:d_slice_x[1], d_slice_y[0]:d_slice_y[1], d_slice_z[0]:d_slice_z[1]] = prediction_binary
+                                        del prediction_binary
+
+                                if (mask_list is not None):
+                                    if (mask_list[vol_index] is not None):
+                                        unmasked_datasets[density].attrs["coordinateTransformations"] = [
+                                            {"type": "matrix", "matrix": affine_save.tolist()}
+                                        ]
+                                        unmasked_datasets[density][slice_x[0]:slice_x[1], slice_y[0]:slice_y[1], slice_z[0]:slice_z[1]] = unmasked
+                                        unmasked = downsample_by_2(unmasked)
+                                prediction = downsample_by_2(prediction)
 
                         
                         else:
