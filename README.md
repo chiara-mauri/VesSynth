@@ -1,6 +1,6 @@
 # VesSynth - A Robust Cross-Scale Cross-Modal 3D Vessel Segmentation Method
 
-[](vesselSegmentation.jpg)
+[Projection of segmented vessels in ex vivo MRI, Optical Coherence Tomography and Hierarchical Phase-Contrast Tomography](vesselSegmentation.jpg)
 
 ## Installation
 
