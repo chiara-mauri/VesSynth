@@ -1,6 +1,6 @@
 # VesSynth - A Robust Cross-Scale Cross-Modal 3D Vessel Segmentation Method
 
-[](vesselSegmentation.png)
+[](vesselSegmentation.jpg)
 
 ## Installation
 
