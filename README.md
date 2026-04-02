@@ -6,8 +6,8 @@
 
 1. Clone this repo and set it as your current working directory
 ``` 
-git clone https://github.com/chiara-mauri/Vessynth.git
-cd Vessynth
+git clone https://github.com/chiara-mauri/VesSynth.git
+cd VesSynth
 ```
 2. Create and activate a conda environment:
 
@@ -29,7 +29,7 @@ cd Vessynth
 
 ## Download the models 
 
-Download the 'models' folder from https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/vesSynth/ 
+Download the 'models' folder from https://ftp.nmr.mgh.harvard.edu/pub/dist/lcnpublic/dist/VesSynth/ 
 unzip it and copy it in this repo
 <!-- from the Dandiset 1062/models_vessel_seg/
 https://dandiarchive.org/dandiset/001602/draft/files?location=models_vessel_seg&page=1 --> 
