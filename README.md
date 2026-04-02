@@ -1,5 +1,7 @@
 # VesSynth - A Robust Cross-Scale Cross-Modal 3D Vessel Segmentation Method
 
+[](vesselSegmentation.png)
+
 ## Installation
 
 1. Clone this repo and set it as your current working directory
