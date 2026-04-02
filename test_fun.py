@@ -129,10 +129,12 @@ def open_tensor(fpath=None, kvstore=None, driver='zarr', bytes_limit=100_000_000
 
     # If kvstore is not provided, create it from fpath
     if kvstore is None:
+        print(f"creating kvstore for {fpath}")
         kvstore = create_kvstore(fpath, store='file', AWS_param=None)
 
     # Check if zarr v3
     if 'zarr' in driver:
+        print(f"opening zarr dataset with driver {driver} and kvstore {kvstore}")
         # Load the tensorstore array with cache configuration
         try:
             dataset_future = ts.open({
@@ -144,6 +146,7 @@ def open_tensor(fpath=None, kvstore=None, driver='zarr', bytes_limit=100_000_000
                     }
                 },
                 'recheck_cached_data': 'open',
+                #'path': '0'  # for zarr v3
             })
             return dataset_future.result()
     
@@ -332,6 +335,13 @@ class RealVolume(object):
                 print('np array data type after loading: ', tensor.dtype)
                 #tensor = np.asarray(nifti.dataobj)
                 affine = nifti.affine
+                if self.cutout:
+                    x1,x2,y1,y2,z1,z2 = [int(x) for x in self.cutout[0].split(',')]
+                    tensor = tensor[x1:x2,y1:y2,z1:z2]
+                    offset = np.array([x1, y1, z1], dtype=float)
+                    affine[:3, 3] = affine[:3, 3] + affine[:3, :3] @ offset
+                    print('Cutout applied: ', self.cutout)
+                    print('New shape after cutout: ', tensor.shape)
 
             elif os.path.exists(os.path.join(input, 'zarr.json')) or os.path.exists(os.path.join(input, '.zarray')): 
                 driver = 'zarr2'
