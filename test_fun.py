@@ -369,7 +369,7 @@ class RealVolume(object):
             tensor = self.normalize_volume(tensor)
         # Needs to be a tensor for padding operations
         print('Original data type: ', tensor.dtype)
-        tensor = torch.as_tensor(tensor, device=self.device, dtype=self.dtype).detach()
+        tensor = torch.as_tensor(tensor, device="cpu", dtype=self.dtype).detach()
         print('Data type after conversion to tensor: ', tensor.dtype)
         #tensor = torch.as_tensor(tensor, device='cpu').detach()
         if pad_it == True:
@@ -530,7 +530,7 @@ class predictSingleImage(RealVolume,Dataset):
         # prediction_patch = self.activation(prediction_patch).squeeze()
 
         
-        self.prediction[coords[0], coords[1], coords[2]] += (prediction_patch * self.patch_weight) if self.patch_weight is not None else prediction_patch #imprint_tensor is big volume that we initialize as empty. 
+        self.prediction[coords[0], coords[1], coords[2]] += (prediction_patch * self.patch_weight).cpu() if self.patch_weight is not None else prediction_patch.cpu() #imprint_tensor is big volume that we initialize as empty. 
         #then we sum all the predictions in there (weighted by the patch weights to give more importance to the center)
     
 
@@ -542,7 +542,7 @@ class predictSingleImage(RealVolume,Dataset):
         if self.normalize_image == True:
             self.tensor = self.rescale(self.tensor)
         t0 = time.time()
-        self.prediction = torch.zeros_like(self.tensor)
+        self.prediction = torch.zeros_like(self.tensor, device="cpu")
         print('Starting predictions!')
         with torch.no_grad():            
             for i in range(n_patches):
