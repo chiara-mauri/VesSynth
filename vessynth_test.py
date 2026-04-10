@@ -40,13 +40,15 @@ if __name__ == "__main__":
     parser.add_argument('--patch_size', type=int, default=128,
                         help='size of UNet input (and size of sliding prediction patch). Default is 128.')
     parser.add_argument('--step_size', type=int, default=None,
-                         help='step size (in vx) between adjacent prediction patches. Default is 32.')
+                        help='step size (in vx) between adjacent prediction patches. Default is a quarter of patch size.')
+    parser.add_argument('--model_path', type=str, default=None,
+                        help=f'path to models directory. Default is {os.path.join(os.path.dirname(__file__), "models")}.')
 
-    
-    
+
+
     args = parser.parse_args()
-    
-    
+
+
     volumes = args.inpvol
     outputdir = args.outdir
     modality = args.modality
@@ -56,20 +58,21 @@ if __name__ == "__main__":
     use_weights = not args.no_weights
     patch_size = args.patch_size
     step_size = args.step_size
+    model_path = args.model_path
     if step_size is None:
-        step_size = patch_size // 4  #fixed step size as quarter of patch size
+        step_size = patch_size // 4  # fixed step size as quarter of patch size
+    if model_path is None:
+        model_path = os.path.join(os.path.dirname(__file__), "models")
 
-    #hardcoded parameters
-    #patch_size = 128
-    #step_size = 32
+    # hardcoded parameters
     final_activation = 'Sigmoid'
     save_native_space = True
-    DEVICE='cuda' if torch.cuda.is_available() else 'cpu'
+    DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     if mask_list is not None:
-        for i,mask_ in enumerate(mask_list):
+        for i, mask_ in enumerate(mask_list):
             if mask_ == 'None':
-               mask_list[i] = None
+                mask_list[i] = None
     
     print("-----------------------------------")
     print("Running vessel segmentation with Vessynth")
@@ -81,31 +84,31 @@ if __name__ == "__main__":
     print(f"Threshold: {threshold}")
     print(f"Mask list: {mask_list}")
     print(f"Predicting with patch size {patch_size} and step size {step_size}")
+    print(f"Running computations using {DEVICE}")
 
 
-    model_path = './models/'
-    
     if modality == 'OCT':
-        model_to_load = glob.glob(model_path + 'weights/OCT_model37*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_OCT.json') #json file containing backbone info
+        model_to_load = glob.glob(os.path.join(model_path, 'weights/OCT_model37*'))[0]
+        json_path = os.path.join(model_path, 'segnet_model_OCT.json') #json file containing backbone info
     elif modality == 'T2star':
-        model_to_load = glob.glob(model_path + 'weights/T2star_model23*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_T2star.json')
+        model_to_load = glob.glob(os.path.join(model_path, 'weights/T2star_model23*'))[0]
+        json_path = os.path.join(model_path, 'segnet_model_T2star.json')
     elif modality == 'TOF':
-        model_to_load = glob.glob(model_path + 'weights/TOF_model54v2*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_TOF.json')
+        model_to_load = glob.glob(os.path.join(model_path, 'weights/TOF_model54v2*'))[0]
+        json_path = os.path.join(model_path, 'segnet_model_TOF.json')
     elif modality == 'HiPCT':
-        model_to_load = glob.glob(model_path + 'weights/HiPCT_model50*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_HiPCT.json')
+        model_to_load = glob.glob(os.path.join(model_path, 'weights/HiPCT_model50*'))[0]
+        json_path = os.path.join(model_path, 'segnet_model_HiPCT.json')
     elif modality == 'fibers':    
-        model_to_load = glob.glob(model_path + 'weights/axons_model3*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_fibers.json')
+        model_to_load = glob.glob(os.path.join(model_path, 'weights/axons_model3*'))[0]
+        json_path = os.path.join(model_path, 'segnet_model_fibers.json')
     elif modality == 'LSFM':
-        model_to_load = glob.glob(model_path + 'weights/LSFM_model13*')[0]
-        json_path = os.path.join(model_path, f'segnet_model_LSFM.json')        
+        model_to_load = glob.glob(os.path.join(model_path, 'weights/LSFM_model13*'))[0]
+        json_path = os.path.join(model_path, 'segnet_model_LSFM.json')        
     else:
         raise ValueError('Modality not recognized. Allowed: OCT, T2star, HiPCT, TOF, fibers.')
-    
+
+    print(f"Model used: {model_to_load}")
 
     if not os.path.exists(outputdir):
         print(f"Creating output directory: {outputdir}")
@@ -115,17 +118,16 @@ if __name__ == "__main__":
     t1 = time.time()
     with torch.no_grad():
 
-        
+
         # Read backbone_dict from the JSON file
         with open(json_path, 'r') as f:
             backbone_dict = json.load(f)
         print("\nLoaded model backbone info from", json_path)
         
         model = SegNet(ndim=3, in_channels=1, out_channels=1,
-                        init_kernel_size=3, final_activation=final_activation, backbone='UNet', 
-                        kwargs_backbone=backbone_dict)
+                       init_kernel_size=3, final_activation=final_activation, backbone='UNet', 
+                       kwargs_backbone=backbone_dict)
 
-        
 
         print('Loading model: ', model_to_load)
 
@@ -143,7 +145,6 @@ if __name__ == "__main__":
         
         print(f"\nStarting predictions on {len(volumes)} volumes...")
         for vol_index, vol in enumerate(volumes):
-        
 
             print(f"Processing volume {vol_index + 1}/{len(volumes)}: {vol}")
             
@@ -162,11 +163,11 @@ if __name__ == "__main__":
 
 
             print(f"Prediction shape: {prediction.shape}")
-            
+
 
             # Save the predictions
         
-            save_name=os.path.basename(vol)
+            save_name = os.path.basename(vol)
             save_name = save_name.replace(".mgz","")
             save_name = save_name.replace(".nii.gz","")
             save_name = save_name.replace(".nii","")
@@ -194,9 +195,9 @@ if __name__ == "__main__":
                     nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob_unmasked.nii.gz")
                     prediction[mask == 0] = 0
 
-            
 
-        
+
+
 
             save_img = nib.Nifti1Image(np.squeeze(prediction), affine=affine_save)
             nib.save(save_img,f"{outputdir}/{save_name}_vessels_prob.nii.gz")    
